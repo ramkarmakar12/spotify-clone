@@ -8,69 +8,47 @@ const Callback: React.FC = () => {
   const navigate = useNavigate();
   const { handleCallback, isAuthenticated } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [authInProgress, setAuthInProgress] = useState<boolean>(true);
 
   useEffect(() => {
-    const processCallback = async () => {
-      const code = searchParams.get('code');
-      const error = searchParams.get('error');
+    const code = searchParams.get('code');
+    const error = searchParams.get('error');
 
-      if (error) {
-        console.log('Authentication cancelled or failed:', error);
-        setError('Authentication was cancelled or failed');
-        setTimeout(() => navigate('/'), 3000);
-        return;
-      }
+    if (error) {
+      console.error('Authentication failed:', error);
+      setError('Authentication was cancelled or failed');
+      setTimeout(() => navigate('/'), 3000);
+      return;
+    }
 
-      if (code) {
-        try {
-          console.log('Processing callback with code:', code);
-          await handleCallback(code);
-          console.log('handleCallback completed.');
+    if (!code) {
+      console.error('No authorization code received.');
+      setError('No authorization code received');
+      setTimeout(() => navigate('/login'), 3000);
+      return;
+    }
 
-          // Wait for authentication state to be updated
-          console.log('Starting interval to check isAuthenticated...');
-          const checkAuth = setInterval(() => {
-            console.log('Checking isAuthenticated:', isAuthenticated);
-            if (isAuthenticated) {
-              console.log('isAuthenticated is true. Clearing interval and navigating to /');
-              clearInterval(checkAuth);
-              navigate('/');
-            }
-          }, 500);
-          
-          // Cleanup interval after 10 seconds to prevent infinite checking
-          console.log('Setting timeout for interval cleanup...');
-          const timeoutId = setTimeout(() => {
-            console.log('Timeout reached.');
-            clearInterval(checkAuth);
-            if (!isAuthenticated) {
-              console.log('isAuthenticated is still false after timeout. Navigating to /login');
-              setError('Authentication timeout');
-              navigate('/login');
-            }
-          }, 10000);
-
-          // Clean up interval and timeout on component unmount or dependency change
-          return () => {
-            console.log('Cleaning up interval and timeout.');
-            clearInterval(checkAuth);
-            clearTimeout(timeoutId);
-          };
-
-        } catch (err) {
-          console.error('Authentication failed:', err);
-          setError('Failed to authenticate with Spotify');
-          setTimeout(() => navigate('/login'), 3000);
-        }
-      } else {
-        console.log('No authorization code received.');
-        setError('No authorization code received');
+    const process = async () => {
+      try {
+        console.log('Processing code:', code);
+        await handleCallback(code);
+        setAuthInProgress(false); // done calling callback
+      } catch (err) {
+        console.error('Error in handleCallback:', err);
+        setError('Failed to authenticate with Spotify');
         setTimeout(() => navigate('/login'), 3000);
       }
     };
 
-    processCallback();
-  }, [searchParams, handleCallback, navigate, isAuthenticated]);
+    process();
+  }, [searchParams, handleCallback, navigate]);
+
+  useEffect(() => {
+    if (!authInProgress && isAuthenticated) {
+      console.log('Authentication successful, redirecting to home.');
+      navigate('/');
+    }
+  }, [authInProgress, isAuthenticated, navigate]);
 
   if (error) {
     return (

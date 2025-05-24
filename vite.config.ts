@@ -9,6 +9,6 @@ export default defineConfig({
     host: true,
     port: 5173,
     strictPort: true,
-    allowedHosts: ['myapp.ngrok-free.app']
+    allowedHosts: ['.vercel.app'], // optional for local testing
   },
 })
